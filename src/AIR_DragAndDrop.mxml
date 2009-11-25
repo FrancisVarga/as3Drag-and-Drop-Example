@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:WindowedApplication
+	xmlns:mx="http://www.adobe.com/2006/mxml"
+	layout="absolute"
+	creationComplete="initApp()">
+	
+	<mx:Script>
+		<![CDATA[
+		
+			import mx.managers.DragManager;
+			
+			import mx.collections.ArrayCollection;
+			import flash.filesystem.*;
+			import flash.events.*;
+			import flash.desktop.*;
+			
+			[Bindable] public var BilderOrdner:File;
+			[Bindable] public var DateiListe:ArrayCollection;
+			
+			public function initApp():void
+			{
+				BilderOrdner = File.desktopDirectory;
+				BilderOrdner = BilderOrdner.resolvePath("DVD-DEMO-Bilder");
+				BilderOrdner.createDirectory();
+				
+				dg.addEventListener(NativeDragEvent.NATIVE_DRAG_ENTER, onDragIn);
+				dg.addEventListener(NativeDragEvent.NATIVE_DRAG_DROP, onDragDrop);
+				
+				readFiles();
+			}
+			
+			private function onDragIn(e:NativeDragEvent):void
+			{
+				NativeDragManager.acceptDragDrop(dg);
+			}
+			
+			private function onDragDrop(e:NativeDragEvent):void
+			{
+				NativeDragManager.dropAction = NativeDragActions.COPY;
+				var dropFiles:Array = e.clipboard.getData( ClipboardFormats.FILE_LIST_FORMAT ) as Array;
+				for(var i:uint=0; i<dropFiles.length; i++)
+				{
+					var copy:File = BilderOrdner.resolvePath(dropFiles[i].name);
+					dropFiles[i].copyToAsync(copy, true);
+					dropFiles[i].addEventListener(Event.COMPLETE, onFilesCopyComplete);
+				}
+			}
+			
+			private function onFilesCopyComplete(e:Event):void
+			{
+				readFiles();
+			}
+			
+			public function readFiles():void
+			{
+				DateiListe = new ArrayCollection();
+				var tempArr:Array = BilderOrdner.getDirectoryListing();
+				for(var i:uint=0; i<tempArr.length; i++)
+				{
+					DateiListe.addItem(tempArr[i]);
+				}
+			}
+			
+			public function filterJpegs(e:Event):void
+			{
+				DateiListe.filterFunction = filterFuncJpegs;
+				DateiListe.refresh();
+			}
+			
+			private function filterFuncJpegs(item:File):Boolean
+			{
+				if(item.extension == 'jpg') return true;
+				else return false;
+			}
+			
+			public function eraseFilter(e:Event):void
+			{
+				DateiListe.filterFunction = null;
+				DateiListe.refresh();
+			}
+			
+		]]>
+	</mx:Script>
+	
+	
+	<mx:TabNavigator width="100%" height="100%">
+		<mx:VBox label="Daten" show="eraseFilter(event)">
+			<mx:DataGrid id="dg" width="100%" height="100%" dataProvider="{DateiListe}">
+				<mx:columns>
+					<mx:DataGridColumn headerText="filename" dataField="name" />
+					<mx:DataGridColumn headerText="type" dataField="type" />
+				</mx:columns>
+			</mx:DataGrid>
+		</mx:VBox>
+		<mx:VBox label="Bilder" show="filterJpegs(event)">
+			<mx:TileList width="100%" height="100%" dataProvider="{DateiListe}" itemRenderer="Thumbnail" />
+		</mx:VBox>
+	</mx:TabNavigator>
+	
+</mx:WindowedApplication>
